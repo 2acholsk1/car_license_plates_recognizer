@@ -38,6 +38,7 @@ setup(
     author="2acholsk1",
     license="MIT",
     packages=setuptools.find_packages(),
+    install_requires=['invoke'],
     entry_points={
         'console_scripts': [
             'Recognize_Plates = src.__main__:main',
