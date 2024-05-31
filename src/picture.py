@@ -28,7 +28,12 @@ class Picture:
     def empty_callback(*args):
         pass
 
-    def preproccessing(self, develop:bool=False) -> None:        
+    def preproccessing(self, develop:bool=False) -> None:
+        """Images preproccesing
+
+        Args:
+            develop (bool, optional): On off developer mode. Defaults to False.
+        """
 
         if develop:
             cv2.namedWindow('Parameters preproccessing')
@@ -98,11 +103,11 @@ class Picture:
             self.preproccesed_img = cv2.dilate(closed_img, kernel_dil, iterations=1)
             plt.imshow(cv2.cvtColor(self.preproccesed_img, cv2.COLOR_BGR2RGB))
             plt.show()
-            # kernel_ope = np.ones((3, 3), np.uint8)
-            # self.image_preproccesed = cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel_ope)
             
     
     def contouring(self) -> None:
+        """Finding contours on preproccessed image
+        """
         contours, _ = cv2.findContours(self.preproccesed_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         candidate_contours = []
 
@@ -114,8 +119,19 @@ class Picture:
                 if 1.5 <= aspect_ratio <= 5 and self.check_contour(w, h):
                     candidate_contours.append(approx)
         self.filtered_contour = sorted(candidate_contours, key=cv2.contourArea, reverse=True)[:1]
+        print(self.filtered_contour)
 
-    def check_contour(self, width, height) -> None:
+
+    def check_contour(self, width:int, height:int) -> None:
+        """Verification of contour area
+
+        Args:
+            width (_type_): As named
+            height (_type_): As named
+
+        Returns:
+            _type_: Verification info
+        """
 
         min = self.min_area 
         max = self.max_area 
@@ -127,7 +143,6 @@ class Picture:
            
         return True
 
-    
 
     def masking(self) -> None:
         self.mask = np.zeros(self.gray_img.shape, np.uint8)
@@ -135,45 +150,50 @@ class Picture:
         self.new_image = cv2.bitwise_and(self.resized_img, self.resized_img, mask=self.mask)
         
     def croping_plate(self) -> None:
+        """Croping license plates from mask image
+        """
         try:
-            (x,y) = np.where(self.mask==255)
-            (x1, y1) = (np.min(x), np.min(y))
-            (x2, y2) = (np.max(x), np.max(y))
-            self.cropped_img = self.resized_img[x1:x2+1, y1:y2+1]
-            plt.imshow(cv2.cvtColor(self.cropped_img, cv2.COLOR_BGR2RGB))
+            width = 400
+            height = 100
+            array_float = np.array([self.filtered_contour[0][0][0], self.filtered_contour[0][1][0],
+                                    self.filtered_contour[0][2][0], self.filtered_contour[0][3][0]], dtype=np.float32)
+            
+            array_float = self.corners_matching(array_float.copy())
+            fit_img = np.float32([[0, 0], [width, 0], [width, height], [0, height]])
+            matrix = cv2.getPerspectiveTransform(array_float, fit_img)
+
+            self.proper_perspective_img = cv2.warpPerspective(self.new_image, matrix, (width, height))
+            plt.imshow(cv2.cvtColor(self.proper_perspective_img, cv2.COLOR_BGR2RGB))
             plt.show()
-        except:
-            print("error")
-
-
-    def change_perspective(self) -> None:
-
-        width, height, _= self.cropped_img.shape
-
-        plate_blur = cv2.GaussianBlur(self.cropped_img, (7, 7), 0)
-        plate_gray = cv2.cvtColor(plate_blur, cv2.COLOR_BGR2GRAY)
-        image_thresh = cv2.adaptiveThreshold(plate_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2) 
-        image_thresh = cv2.morphologyEx(image_thresh, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)))
-        image_thresh = cv2.morphologyEx(image_thresh, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)))
+        except Exception as e:
+            print(f"An error occurred: {e}")
         
-        contours, _ = cv2.findContours(image_thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        centers = []
-        
-        for cnt in contours:
-            M = cv2.moments(cnt)
 
-            cx = int(M["m10"] / M["m00"])
-            cy = int(M["m01"] / M["m00"])
+    def corners_matching(self, array:np.array) -> None:
+        """Function for correcting rotation of recognized license plate
 
-            centers.append((cx, cy))
+        Args:
+            array (np.array): Corners
 
+        Returns:
+            _type_: Proper corners order
+        """
+        array_sum_col = np.sum(array, axis=1)
+        min_row = np.argmin(array_sum_col)
+        max_row = np.argmax(array_sum_col)
+        first_cor = array[min_row]
+        third_cor = array[max_row]
+        array_of_two = np.delete(array, [min_row, max_row], axis=0)
+        greater_x = np.argmax(array_of_two[:,0])
+        non_greater_x = np.argmin(array_of_two[:,0])
+        second_cor = array_of_two[greater_x]
+        fourth_cor = array_of_two[non_greater_x]
+        return np.array([first_cor, second_cor, third_cor, fourth_cor], dtype=np.float32)
+    
+    def plate_get(self):
+        """Get plate license image
 
-        if len(centers) >= 4:
-            centers = np.float32(centers[:4])
-            print(len(centers))
-            dst_points = np.float32([(width, height), (0, height), (width, 0), (0, 0)])
-        
-            trans_matrix = cv2.getPerspectiveTransform(np.float32(centers), dst_points)
-            image_persp = cv2.warpPerspective(self.cropped_img, trans_matrix, (width, height))
-            plt.imshow(cv2.cvtColor(image_persp, cv2.COLOR_BGR2RGB))
-            plt.show()
+        Returns:
+            _type_: Image of license plate 
+        """
+        return self.proper_perspective_img

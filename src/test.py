@@ -14,8 +14,8 @@ def load_and_display_images(folder_path):
         pic.contouring()
         pic.masking()
         pic.croping_plate()
-        if pic.filtered_contour and pic.cropped_img is not None:
-            pic.change_perspective()
+        # if pic.filtered_contour and pic.cropped_img is not None:
+        #     pic.change_perspective()
     
 
 folder_path = 'data/train_1'
