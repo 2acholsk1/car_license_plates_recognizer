@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 class Picture:
     
 
-    def __init__(self, path, min_area, max_area):
+    def __init__(self, path):
         """Initialize Picture class with path to .jpg
 
         Args:
@@ -19,8 +19,6 @@ class Picture:
         try:
             self.raw_img = cv2.imread(path)
             self.resized_img = cv2.resize(self.raw_img, (1000,800), fx=0.0, fy=0.0, interpolation=cv2.INTER_LANCZOS4)
-            self.min_area = min_area
-            self.max_area = max_area
 
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -116,35 +114,15 @@ class Picture:
             if len(approx) == 4:
                 x, y, w, h = cv2.boundingRect(approx)
                 aspect_ratio = w / float(h)
-                if 1.5 <= aspect_ratio <= 5 and self.check_contour(w, h):
+                if 1.5 <= aspect_ratio <= 5:
                     candidate_contours.append(approx)
         self.filtered_contour = sorted(candidate_contours, key=cv2.contourArea, reverse=True)[:1]
-        print(self.filtered_contour)
 
-
-    def check_contour(self, width:int, height:int) -> None:
-        """Verification of contour area
-
-        Args:
-            width (_type_): As named
-            height (_type_): As named
-
-        Returns:
-            _type_: Verification info
-        """
-
-        min = self.min_area 
-        max = self.max_area 
-   
-        area = width*height
-   
-        if (area < min or area > max): 
-            return False
-           
-        return True
 
 
     def masking(self) -> None:
+        """Set mask on image and extract plate contour
+        """
         self.mask = np.zeros(self.gray_img.shape, np.uint8)
         self.new_image = cv2.drawContours(self.mask, self.filtered_contour, 0, 255, -1)
         self.new_image = cv2.bitwise_and(self.resized_img, self.resized_img, mask=self.mask)
