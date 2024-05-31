@@ -10,17 +10,17 @@ import matplotlib.pyplot as plt
 class Picture:
     
 
-    def __init__(self, path):
+    def __init__(self, path, min_area, max_area):
         """Initialize Picture class with path to .jpg
 
         Args:
             path (None): Path to picture
         """
         try:
-            self.image_raw = cv2.imread(path)
-            self.image_resized = cv2.resize(self.image_raw, (800,600), fx=0.0, fy=0.0, interpolation=cv2.INTER_LANCZOS4)
-            self.image_gray = cv2.cvtColor(self.image_resized, cv2.COLOR_BGR2GRAY)
-            self.image_hsv = cv2.cvtColor(self.image_resized, cv2.COLOR_BGR2HSV)
+            self.raw_img = cv2.imread(path)
+            self.resized_img = cv2.resize(self.raw_img, (1000,800), fx=0.0, fy=0.0, interpolation=cv2.INTER_LANCZOS4)
+            self.min_area = min_area
+            self.max_area = max_area
 
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -88,20 +88,22 @@ class Picture:
                 cv2.imshow('Parameters preproccessing', image_work)
 
         else:
-            image = cv2.GaussianBlur(self.image_gray, (7, 7), 0)
-            image = cv2.Canny(image, 50, 200)
+            blurred_img = cv2.GaussianBlur(self.resized_img, (7, 7), 0)
+            self.gray_img = cv2.cvtColor(blurred_img, cv2.COLOR_BGR2GRAY)
+            canny_img = cv2.Canny(self.gray_img, 50, 200)
+            _, threshold_img = cv2.threshold(canny_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            
+            closed_img = cv2.morphologyEx(threshold_img, cv2.MORPH_CLOSE, (5,5))
             kernel_dil = np.ones((3, 3), np.uint8)
-            self.image_preproccesed= cv2.dilate(image, kernel_dil, iterations=1)
+            self.preproccesed_img = cv2.dilate(closed_img, kernel_dil, iterations=1)
+            plt.imshow(cv2.cvtColor(self.preproccesed_img, cv2.COLOR_BGR2RGB))
+            plt.show()
             # kernel_ope = np.ones((3, 3), np.uint8)
             # self.image_preproccesed = cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel_ope)
             
     
     def contouring(self) -> None:
-        contours, _ = cv2.findContours(self.image_preproccesed, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        contour_image = self.image_resized.copy()
-        cv2.drawContours(contour_image, contours, -1, (0, 255, 0), 2)
-        plt.imshow(cv2.cvtColor(contour_image, cv2.COLOR_BGR2RGB))
-        plt.show()
+        contours, _ = cv2.findContours(self.preproccesed_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         candidate_contours = []
 
         for cnt in contours:
@@ -109,28 +111,69 @@ class Picture:
             if len(approx) == 4:
                 x, y, w, h = cv2.boundingRect(approx)
                 aspect_ratio = w / float(h)
-                if 1.5 <= aspect_ratio <= 5:
+                if 1.5 <= aspect_ratio <= 5 and self.check_contour(w, h):
                     candidate_contours.append(approx)
-        contour_image = self.image_resized.copy()
-        self.filtered_contours = sorted(candidate_contours, key=cv2.contourArea, reverse=True)[:1]
+        self.filtered_contour = sorted(candidate_contours, key=cv2.contourArea, reverse=True)[:1]
 
+    def check_contour(self, width, height) -> None:
+
+        min = self.min_area 
+        max = self.max_area 
+   
+        area = width*height
+   
+        if (area < min or area > max): 
+            return False
+           
+        return True
 
     
 
     def masking(self) -> None:
-        self.mask = np.zeros(self.image_gray.shape, np.uint8)
-        self.new_image = cv2.drawContours(self.mask, self.filtered_contours, 0, 255, -1)
-        self.new_image = cv2.bitwise_and(self.image_resized, self.image_resized, mask=self.mask)
-        plt.imshow(cv2.cvtColor(self.new_image, cv2.COLOR_BGR2RGB))
-        plt.show()
+        self.mask = np.zeros(self.gray_img.shape, np.uint8)
+        self.new_image = cv2.drawContours(self.mask, self.filtered_contour, 0, 255, -1)
+        self.new_image = cv2.bitwise_and(self.resized_img, self.resized_img, mask=self.mask)
         
     def croping_plate(self) -> None:
         try:
             (x,y) = np.where(self.mask==255)
             (x1, y1) = (np.min(x), np.min(y))
             (x2, y2) = (np.max(x), np.max(y))
-            cropped_image = self.image_resized[x1:x2+1, y1:y2+1]
-            plt.imshow(cv2.cvtColor(cropped_image, cv2.COLOR_BGR2RGB))
+            self.cropped_img = self.resized_img[x1:x2+1, y1:y2+1]
+            plt.imshow(cv2.cvtColor(self.cropped_img, cv2.COLOR_BGR2RGB))
             plt.show()
         except:
             print("error")
+
+
+    def change_perspective(self) -> None:
+
+        width, height, _= self.cropped_img.shape
+
+        plate_blur = cv2.GaussianBlur(self.cropped_img, (7, 7), 0)
+        plate_gray = cv2.cvtColor(plate_blur, cv2.COLOR_BGR2GRAY)
+        image_thresh = cv2.adaptiveThreshold(plate_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2) 
+        image_thresh = cv2.morphologyEx(image_thresh, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)))
+        image_thresh = cv2.morphologyEx(image_thresh, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)))
+        
+        contours, _ = cv2.findContours(image_thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        centers = []
+        
+        for cnt in contours:
+            M = cv2.moments(cnt)
+
+            cx = int(M["m10"] / M["m00"])
+            cy = int(M["m01"] / M["m00"])
+
+            centers.append((cx, cy))
+
+
+        if len(centers) >= 4:
+            centers = np.float32(centers[:4])
+            print(len(centers))
+            dst_points = np.float32([(width, height), (0, height), (width, 0), (0, 0)])
+        
+            trans_matrix = cv2.getPerspectiveTransform(np.float32(centers), dst_points)
+            image_persp = cv2.warpPerspective(self.cropped_img, trans_matrix, (width, height))
+            plt.imshow(cv2.cvtColor(image_persp, cv2.COLOR_BGR2RGB))
+            plt.show()
