@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Class initialization
+"""Picture class script
 """
 
 import cv2
@@ -8,6 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Picture:
+    """Class for initial preproccess images and extract license plates
+    """
     
 
     def __init__(self, path):
@@ -18,10 +20,16 @@ class Picture:
         """
         try:
             self.raw_img = cv2.imread(path)
-            self.resized_img = cv2.resize(self.raw_img, (1000,800), fx=0.0, fy=0.0, interpolation=cv2.INTER_LANCZOS4)
+            img_ratio = self.raw_img.shape[1]/self.raw_img.shape[0]
+
+            self.resized_img = cv2.resize(self.raw_img, (1080, int(1080/img_ratio)), fx=0.0, fy=0.0, interpolation=cv2.INTER_LANCZOS4)
+            self.width, self.height = self.resized_img.shape
+            self.proper_perspective_img = None
 
         except Exception as e:
             print(f"An error occurred: {e}")
+
+
 
     def empty_callback(*args):
         pass
@@ -45,7 +53,8 @@ class Picture:
             cv2.createTrackbar('Closing', 'Parameters preproccessing', 0, 10, self.empty_callback)
         
             while True: 
-                image_work = self.image_gray 
+                blurred_img = cv2.GaussianBlur(self.resized_img, (7, 7), 0)
+                image_work = cv2.cvtColor(blurred_img, cv2.COLOR_BGR2GRAY)
                 key_code = cv2.waitKey(10)
                 if key_code == 27:
                     break
@@ -98,10 +107,8 @@ class Picture:
             
             closed_img = cv2.morphologyEx(threshold_img, cv2.MORPH_CLOSE, (5,5))
             kernel_dil = np.ones((3, 3), np.uint8)
-            self.preproccesed_img = cv2.dilate(closed_img, kernel_dil, iterations=1)
-            plt.imshow(cv2.cvtColor(self.preproccesed_img, cv2.COLOR_BGR2RGB))
-            plt.show()
-            
+            self.preproccesed_img = cv2.dilate(closed_img, kernel_dil, iterations=1)           
+    
     
     def contouring(self) -> None:
         """Finding contours on preproccessed image
@@ -117,7 +124,6 @@ class Picture:
                 if 1.5 <= aspect_ratio <= 5:
                     candidate_contours.append(approx)
         self.filtered_contour = sorted(candidate_contours, key=cv2.contourArea, reverse=True)[:1]
-
 
 
     def masking(self) -> None:
@@ -141,8 +147,6 @@ class Picture:
             matrix = cv2.getPerspectiveTransform(array_float, fit_img)
 
             self.proper_perspective_img = cv2.warpPerspective(self.new_image, matrix, (width, height))
-            plt.imshow(cv2.cvtColor(self.proper_perspective_img, cv2.COLOR_BGR2RGB))
-            plt.show()
         except Exception as e:
             print(f"An error occurred: {e}")
         

@@ -1,6 +1,7 @@
 import cv2
 import os
 from picture import Picture
+from plate import Plate
 
 def load_and_display_images(folder_path):
     images = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
@@ -14,8 +15,9 @@ def load_and_display_images(folder_path):
         pic.contouring()
         pic.masking()
         pic.croping_plate()
-        # if pic.filtered_contour and pic.cropped_img is not None:
-        #     pic.change_perspective()
+       
+        plate = Plate(pic.plate_get())
+        plate.preproccess(develop=False)
     
 
 folder_path = 'data/train_1'
