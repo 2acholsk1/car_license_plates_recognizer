@@ -1,0 +1,31 @@
+# Configuration file for picture sets
+
+PICTURE:
+  size: 1080
+  area_min: 20000
+  area_max: 90000
+  width_plate: 896
+  height_plate: 256
+  
+
+
+
+# Minimal and Maximal hsv range for blue 
+
+BLUE:
+  h_min: 72
+  s_min: 140
+  v_min: 70
+  h_max: 112
+  s_max: 255
+  v_max: 255
+
+# Minimal and Maximal hsv range for white 
+
+WHITE:
+  h_min: 0
+  s_min: 0
+  v_min: 155
+  h_max: 170
+  s_max: 45
+  v_max: 255

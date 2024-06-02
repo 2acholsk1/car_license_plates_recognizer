@@ -6,13 +6,15 @@ import cv2
 import imutils
 import numpy as np
 import matplotlib.pyplot as plt
+import imutils
+
 
 class Picture:
     """Class for initial preproccess images and extract license plates
     """
     
 
-    def __init__(self, path):
+    def __init__(self, path, size_init:int):
         """Initialize Picture class with path to .jpg
 
         Args:
@@ -22,8 +24,7 @@ class Picture:
             self.raw_img = cv2.imread(path)
             img_ratio = self.raw_img.shape[1]/self.raw_img.shape[0]
 
-            self.resized_img = cv2.resize(self.raw_img, (1080, int(1080/img_ratio)), fx=0.0, fy=0.0, interpolation=cv2.INTER_LANCZOS4)
-            self.width, self.height = self.resized_img.shape
+            self.resized_img = cv2.resize(self.raw_img, (size_init, int(size_init/img_ratio)), fx=0.0, fy=0.0, interpolation=cv2.INTER_LANCZOS4)
             self.proper_perspective_img = None
 
         except Exception as e:
@@ -101,29 +102,79 @@ class Picture:
 
         else:
             blurred_img = cv2.GaussianBlur(self.resized_img, (7, 7), 0)
-            self.gray_img = cv2.cvtColor(blurred_img, cv2.COLOR_BGR2GRAY)
-            canny_img = cv2.Canny(self.gray_img, 50, 200)
-            _, threshold_img = cv2.threshold(canny_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            
-            closed_img = cv2.morphologyEx(threshold_img, cv2.MORPH_CLOSE, (5,5))
-            kernel_dil = np.ones((3, 3), np.uint8)
-            self.preproccesed_img = cv2.dilate(closed_img, kernel_dil, iterations=1)           
+
+
+    def blue_rectangle_finder(self, blue_min:np.ndarray, blue_max:np.ndarray):
+
+        bilateral = cv2.bilateralFilter(self.resized_img, 3, 75, 75)
+        hsv_img = cv2.cvtColor(bilateral, cv2.COLOR_BGR2HSV)
+        mask_blue = cv2.inRange(hsv_img, blue_min, blue_max)
+
+        contours = cv2.findContours(mask_blue, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours_grab = imutils.grab_contours(contours)
+        contours_sort = sorted(contours_grab, key=cv2.contourArea, reverse=True)[:1]
+        cv2.drawContours(self.resized_img, contours_sort, 0, 255, 5)
+        plt.imshow(cv2.cvtColor(self.resized_img, cv2.COLOR_BGR2RGB))
+        plt.show()
+        x, y, w, h = cv2.boundingRect(contours_sort[0])
+        if h > w:
+            return x
+        
+        return None
+
     
     
-    def contouring(self) -> None:
+    def contouring_plate(self, blue_min:np.ndarray, blue_max:np.ndarray, 
+                         white_min:np.ndarray, white_max:np.ndarray,
+                         min_area, max_area, widthh, heightt ) -> None:
         """Finding contours on preproccessed image
         """
-        contours, _ = cv2.findContours(self.preproccesed_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        candidate_contours = []
 
-        for cnt in contours:
-            approx = cv2.approxPolyDP(cnt, 0.02 * cv2.arcLength(cnt, True), True)
-            if len(approx) == 4:
-                x, y, w, h = cv2.boundingRect(approx)
-                aspect_ratio = w / float(h)
-                if 1.5 <= aspect_ratio <= 5:
-                    candidate_contours.append(approx)
-        self.filtered_contour = sorted(candidate_contours, key=cv2.contourArea, reverse=True)[:1]
+        x_cor = self.blue_rectangle_finder(blue_min, blue_max)
+
+        bilateral = cv2.bilateralFilter(self.resized_img, 3, 75, 75)
+        hsv_img = cv2.cvtColor(bilateral, cv2.COLOR_BGR2HSV)
+        mask_white = cv2.inRange(hsv_img, white_min, white_max)
+
+        contours = cv2.findContours(mask_white, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours_grab = imutils.grab_contours(contours)
+        contours_sort = sorted(contours_grab, key=cv2.contourArea, reverse=True)[:10]
+
+        for cnt in contours_sort:
+            area = cv2.contourArea(cnt)
+            x, y, w, h = cv2.boundingRect(cnt)
+            peri = cv2.arcLength(cnt, True)
+            corners = cv2.approxPolyDP(cnt, 0.02 * peri, True)
+
+            if min_area < area < max_area and x > x_cor and len(corners) == 4:
+                array_float = np.array([corners[0][0], corners[1][0],
+                                        corners[2][0], corners[3][0]], dtype=np.float32)
+                pts1 = self.corners_matching(array_float)
+                pts2 = np.float32(
+                    [
+                        [0, 0], [widthh, 0], [widthh, heightt], [0, heightt],
+                    ]
+                )
+                matrix = cv2.getPerspectiveTransform(pts1, pts2)
+                image = cv2.warpPerspective(self.resized_img, matrix, (widthh, heightt))
+                plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+                plt.show()
+
+                return image
+
+        return None
+
+        # contours, _ = cv2.findContours(self.preproccesed_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        # candidate_contours = []
+
+        # for cnt in contours:
+        #     approx = cv2.approxPolyDP(cnt, 0.02 * cv2.arcLength(cnt, True), True)
+        #     if len(approx) == 4:
+        #         x, y, w, h = cv2.boundingRect(approx)
+        #         aspect_ratio = w / float(h)
+        #         if 1.5 <= aspect_ratio <= 5:
+        #             candidate_contours.append(approx)
+        # self.filtered_contour = sorted(candidate_contours, key=cv2.contourArea, reverse=True)[:1]
 
 
     def masking(self) -> None:
