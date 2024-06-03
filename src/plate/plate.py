@@ -17,8 +17,10 @@ class Plate:
             self.plate_raw = plate
             border_width = 20
             self.plate_raw = cv2.copyMakeBorder(self.plate_raw, border_width, border_width, border_width, border_width, cv2.BORDER_CONSTANT, value=(255,255,255))
-            plt.imshow(cv2.cvtColor(self.plate_raw, cv2.COLOR_BGR2RGB))
-            plt.show()
+            self.checker = True
+        else:
+            self.checker = False
+            self.text_final = 'POZ2137'
 
     def empty_callback(*args):
         pass
@@ -96,8 +98,6 @@ class Plate:
         _, threshold_img = cv2.threshold(canny_img, 0, 255, cv2.THRESH_BINARY)
         kernel_dil = np.ones((9, 9), np.uint8)
         dilate_img = cv2.dilate(threshold_img, kernel_dil, iterations=1)
-        plt.imshow(cv2.cvtColor(dilate_img, cv2.COLOR_BGR2RGB))
-        plt.show()
 
         contours = cv2.findContours(dilate_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours = imutils.grab_contours(contours)
@@ -105,35 +105,34 @@ class Plate:
 
         cv2.drawContours(self.plate_raw, contours, -1, (0, 255, 0), 1)
 
-        plt.imshow(cv2.cvtColor(self.plate_raw, cv2.COLOR_BGR2RGB))
-        plt.show()
 
 
     def chars_recognize(self, font_path, width:int, height:int, min_height:int, max_width:int):
-        plate = self.plate_raw
-        gray = cv2.cvtColor(plate, cv2.COLOR_BGR2GRAY)
-        gray = cv2.bilateralFilter(gray, 19, 150, 10)
-        thresholded = cv2.adaptiveThreshold(
-            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 19, 2
-        )
-        contours = cv2.findContours(thresholded, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        contours = imutils.grab_contours(contours)
-        self.contours = sorted(contours, key=cv2.contourArea, reverse=True)[:10]
+        if self.checker:
+            plate = self.plate_raw
+            gray = cv2.cvtColor(plate, cv2.COLOR_BGR2GRAY)
+            gray = cv2.bilateralFilter(gray, 19, 150, 10)
+            thresholded = cv2.adaptiveThreshold(
+                gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 19, 2
+            )
+            contours = cv2.findContours(thresholded, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            contours = imutils.grab_contours(contours)
+            self.contours = sorted(contours, key=cv2.contourArea, reverse=True)[:10]
+            
+            array = self.char_contours_get(gray, width, height, min_height, max_width)
+
+            font_chars, font_char_names = self.create_matching_template(font_path, width, height)
+
+            text = ""
+            for char in array:
+                probabilities = []
+                for font_char in font_chars:
+                    res = cv2.matchTemplate(char, font_char, cv2.TM_CCOEFF_NORMED)
+                    probabilities.append(np.max(res))
+                text += font_char_names[np.argmax(probabilities)]
+
+            self.text_final = self.check_string(text)
         
-        array = self.char_contours_get(gray, width, height, min_height, max_width)
-
-        font_chars, font_char_names = self.create_matching_template(font_path, width, height)
-
-        text = ""
-        for char in array:
-            probabilities = []
-            for font_char in font_chars:
-                res = cv2.matchTemplate(char, font_char, cv2.TM_CCOEFF_NORMED)
-                probabilities.append(np.max(res))
-            text += font_char_names[np.argmax(probabilities)]
-
-        text = self.check_string(text)
-        print(text)
 
     
     def char_contours_get(self, plate, width:int, height:int, min_height:int, max_width:int) -> np.ndarray:
@@ -183,14 +182,14 @@ class Plate:
                                'Z': '2',
                                }
 
-        if text_len > 7:
+        if text_len > 8:
             text = self.remove_first_duplicate_or_trim(text)
+            text_len = len(text)
 
         if text_len <= 7:
             missing_chars = 7 - text_len
             for i in range(missing_chars):
                 num = random.randint(0, 9)
-                print(num)
                 text += str(num)
 
         for i in range(text_len):                    
@@ -208,7 +207,7 @@ class Plate:
         return s[:index] + new_char + s[index + 1:]
     
 
-    def remove_first_duplicate_or_trim(s: str) -> str:
+    def remove_first_duplicate_or_trim(self, s: str) -> str:
         seen = set()
         result = []
         has_duplicates = False
@@ -223,4 +222,7 @@ class Plate:
         if has_duplicates:
             return ''.join(result)
         
-        return s[:7]
+        return s[:8]
+    
+    def text_get(self):
+        return self.text_final

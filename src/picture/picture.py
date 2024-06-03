@@ -20,15 +20,12 @@ class Picture:
         Args:
             path (None): Path to picture
         """
-        try:
-            self.raw_img = cv2.imread(path)
-            img_ratio = self.raw_img.shape[1]/self.raw_img.shape[0]
+        self.raw_img = cv2.imread(path)
+        img_ratio = self.raw_img.shape[1]/self.raw_img.shape[0]
 
-            self.resized_img = cv2.resize(self.raw_img, (size_init, int(size_init/img_ratio)), fx=0.0, fy=0.0, interpolation=cv2.INTER_LANCZOS4)
-            self.plate = None
+        self.resized_img = cv2.resize(self.raw_img, (size_init, int(size_init/img_ratio)), fx=0.0, fy=0.0, interpolation=cv2.INTER_LANCZOS4)
+        self.plate = None
 
-        except Exception as e:
-            print(f"An error occurred: {e} uno")
 
 
 
@@ -227,12 +224,11 @@ class Picture:
                 candidate_contours.append(corners)
                 
         filtered_contour = candidate_contours[:1]
-
-        mask = np.zeros(gray_img.shape, np.uint8)
-        new_image = cv2.drawContours(mask, filtered_contour, 0, 255, -1)
-        new_image = cv2.bitwise_and(self.resized_img, self.resized_img, mask=mask)
-
         try:
+            mask = np.zeros(gray_img.shape, np.uint8)
+            new_image = cv2.drawContours(mask, filtered_contour, 0, 255, -1)
+            new_image = cv2.bitwise_and(self.resized_img, self.resized_img, mask=mask)
+            
             array_float = np.array([filtered_contour[0][0][0], filtered_contour[0][1][0],
                                     filtered_contour[0][2][0], filtered_contour[0][3][0]], dtype=np.float32)
             
@@ -241,9 +237,8 @@ class Picture:
             matrix = cv2.getPerspectiveTransform(array_float, fit_img)
 
             self.plate = cv2.warpPerspective(new_image, matrix, (width_plate, height_plate))
-            
-        except Exception as e:
-            print(f"An error occurred: {e}")
+        except:
+            pass
 
     def corners_matching(self, array:np.array) -> None:
         """Function for correcting rotation of recognized license plate

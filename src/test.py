@@ -1,7 +1,7 @@
 import cv2
 import os
-from picture import Picture
-from plate import Plate
+from src.picture.picture import Picture
+from src.plate.plate import Plate
 import numpy as np
 from src.config_func import load_config
 
@@ -26,14 +26,12 @@ def load_and_display_images(folder_path):
                              np.array([config_pic['BLUE']['h_max'], config_pic['BLUE']['s_max'], config_pic['BLUE']['v_max']]),
                              config_pic['PICTURE']['area_min'], config_pic['PICTURE']['area_max'],
                              config_pic['PICTURE']['width_plate'], config_pic['PICTURE']['height_plate'])
-        try:
-            plate = Plate(pic.plate_get())
-            # plate.preproccess(develop=False)
-            plate.chars_recognize('data/font',
-                                  config_pla['CHAR']['width'], config_pla['CHAR']['height'],
-                                  config_pla['CHAR']['height_min'], config_pla['CHAR']['width_max'])
-        except Exception as e:
-            print(f"An error occurred: {e}")
+        
+        plate = Plate(pic.plate_get())
+        plate.chars_recognize('data/font',
+                                config_pla['CHAR']['width'], config_pla['CHAR']['height'],
+                                config_pla['CHAR']['height_min'], config_pla['CHAR']['width_max'])
+
     
 
 folder_path = 'data/train_1'
