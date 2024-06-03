@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""This script include main function of program
+"""
 
 import os
 import sys
@@ -7,12 +9,13 @@ from src.picture.picture import Picture
 from src.plate.plate import Plate
 import numpy as np
 from src.config_func import load_config
-import time
 
 pictures_path = sys.argv[1]
 saving_path = sys.argv[2]
 
 def main():
+    """License Plate recognition main function
+    """
     
     config_pic = load_config("config/picture_config.yaml")
     config_pla = load_config("config/plate_config.yaml")
@@ -22,7 +25,6 @@ def main():
     images = [f for f in os.listdir(pictures_path) if os.path.isfile(os.path.join(pictures_path, f))]
     
     for image_name in images:
-        t1 = time.time()
         image_path = os.path.join(pictures_path, image_name)
         
         pic = Picture(image_path, config_pic['PICTURE']['size'])
@@ -45,8 +47,6 @@ def main():
                                 config_pla['CHAR']['height_min'], config_pla['CHAR']['width_max'])
 
         results[image_name] = plate.text_get()
-        t2 = time.time()
-        print(f"time : {t2-t1}")
     
     with open(saving_path+'.json', 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2)

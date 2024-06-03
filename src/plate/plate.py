@@ -1,9 +1,16 @@
 #!/usr/bin/env python
+"""Class for recgnize chars on license plates
+
+Raises:
+    ValueError: _description_
+
+Returns:
+    _type_: Text from license plate
+"""
 
 
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
 import imutils
 import os
 import random
@@ -12,6 +19,11 @@ import random
 class Plate:
 
     def __init__(self, plate:np.ndarray) -> None:
+        """Init function for creating plate object
+
+        Args:
+            plate (np.ndarray): Plate image, given from Picture object
+        """
         
         if plate is not None:
             self.plate_raw = plate
@@ -23,6 +35,8 @@ class Plate:
             self.text_final = 'POZ2137'
 
     def empty_callback(*args):
+        """Dummy function for trackbars
+        """
         pass
 
     def preproccess(self, develop:bool=False):
@@ -108,6 +122,16 @@ class Plate:
 
 
     def chars_recognize(self, font_path, width:int, height:int, min_height:int, max_width:int):
+        """Function to find contours of chars and recognize them
+
+        Args:
+            font_path (_type_): Path to font folder
+            width (int): Width of char extracted
+            height (int): Height of char extracted
+            min_height (int): Minimal height of char on plate
+            max_width (int): Maximal width of char on plate
+        """
+
         if self.checker:
             plate = self.plate_raw
             gray = cv2.cvtColor(plate, cv2.COLOR_BGR2GRAY)
@@ -135,7 +159,19 @@ class Plate:
         
 
     
-    def char_contours_get(self, plate, width:int, height:int, min_height:int, max_width:int) -> np.ndarray:
+    def char_contours_get(self, plate: np.ndarray, width:int, height:int, min_height:int, max_width:int) -> np.ndarray:
+        """Function to extract contours of chars from rectangle plate
+
+        Args:
+            plate (ndarray): Image of plate
+            width (int): Width of char extracted
+            height (int): Height of char extracted
+            min_height (int): Minimal height of char on plate
+            max_width (int): Maximal width of char on plate
+
+        Returns:
+            np.ndarray: Array of chars
+        """
         bounds = []
         contours = sorted(self.contours, key=lambda cnt: cv2.boundingRect(cnt)[0])
         for cnt in contours:
@@ -150,6 +186,16 @@ class Plate:
     
 
     def create_matching_template(self, font_path, width:int, height:int) -> tuple[np.ndarray, list]:
+        """Function which create matching template from specific font, given in folder
+
+        Args:
+            font_path (_type_): Path to all chars
+            width (int): Width of char
+            height (int): Height of char
+
+        Returns:
+            tuple[np.ndarray, list]: Tuple which contain array of chars characteristics and list of chars
+        """
         chars_template = os.listdir(font_path)
         chars = []
         for char in chars_template:
@@ -165,6 +211,14 @@ class Plate:
     
 
     def check_string(self, text):
+        """Function which checking correctness of chars in text
+
+        Args:
+            text (_type_): Given text from chars
+
+        Returns:
+            _type_: Corrected or not corrected text
+        """
 
         text_len = len(text)
         changes_first_part = {'0': 'O',
@@ -202,12 +256,33 @@ class Plate:
     
 
     def replace_char_at_index(self, s: str, index: int, new_char: str) -> str:
+        """Function which replace char with proper char
+
+        Args:
+            s (str): Text given
+            index (int): Index to replace
+            new_char (str): Where to save after changes
+
+        Raises:
+            ValueError: _description_
+
+        Returns:
+            str: Edited string
+        """
         if index < 0 or index >= len(s):
             raise ValueError("Index out of range.")
         return s[:index] + new_char + s[index + 1:]
     
 
     def remove_first_duplicate_or_trim(self, s: str) -> str:
+        """Function to remove duplicated chars in string and trim
+
+        Args:
+            s (str): String to edit
+
+        Returns:
+            str: Edited string
+        """
         seen = set()
         result = []
         has_duplicates = False
@@ -225,4 +300,9 @@ class Plate:
         return s[:8]
     
     def text_get(self):
+        """Function to get final text
+
+        Returns:
+            _type_: Final text
+        """
         return self.text_final
