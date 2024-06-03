@@ -185,8 +185,6 @@ class Picture:
                 fit_img = np.float32([[0, 0], [width_plate, 0], [width_plate, height_plate], [0, height_plate]])
                 matrix = cv2.getPerspectiveTransform(points, fit_img)
                 self.plate = cv2.warpPerspective(self.resized_img.copy(), matrix, (width_plate, height_plate))
-                plt.imshow(cv2.cvtColor(self.plate, cv2.COLOR_BGR2RGB))
-                plt.show()
 
     def contouring_plate_mod2(self, blue_min, blue_max,
                               min_area:int, max_area:int,
@@ -211,7 +209,6 @@ class Picture:
         _, threshold_img = cv2.threshold(canny_img, 100, 255, cv2.THRESH_BINARY)
         closed_img = cv2.morphologyEx(threshold_img, cv2.MORPH_CLOSE, (5,5))
         kernel_dil = np.ones((3, 3), np.uint8)
-        kernel_dil = np.ones((3, 3), np.uint8)
         preproccessed_img = cv2.dilate(closed_img, kernel_dil, iterations=1)
         contours = cv2.findContours(preproccessed_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours_grab = imutils.grab_contours(contours)
@@ -234,7 +231,7 @@ class Picture:
         mask = np.zeros(gray_img.shape, np.uint8)
         new_image = cv2.drawContours(mask, filtered_contour, 0, 255, -1)
         new_image = cv2.bitwise_and(self.resized_img, self.resized_img, mask=mask)
-        
+
         try:
             array_float = np.array([filtered_contour[0][0][0], filtered_contour[0][1][0],
                                     filtered_contour[0][2][0], filtered_contour[0][3][0]], dtype=np.float32)
@@ -244,8 +241,7 @@ class Picture:
             matrix = cv2.getPerspectiveTransform(array_float, fit_img)
 
             self.plate = cv2.warpPerspective(new_image, matrix, (width_plate, height_plate))
-            plt.imshow(cv2.cvtColor(self.plate, cv2.COLOR_BGR2RGB))
-            plt.show()
+            
         except Exception as e:
             print(f"An error occurred: {e}")
 

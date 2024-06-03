@@ -5,6 +5,8 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import imutils
+import os
+import random
 
 
 class Plate:
@@ -13,15 +15,20 @@ class Plate:
         
         if plate is not None:
             self.plate_raw = plate
-            self.plate_raw = cv2.resize(plate, (876, 236), cv2.INTER_AREA)
-            self.min_letter_rec = 100
-            border_width = 10
+            border_width = 20
             self.plate_raw = cv2.copyMakeBorder(self.plate_raw, border_width, border_width, border_width, border_width, cv2.BORDER_CONSTANT, value=(255,255,255))
-        
+            plt.imshow(cv2.cvtColor(self.plate_raw, cv2.COLOR_BGR2RGB))
+            plt.show()
+
     def empty_callback(*args):
         pass
 
     def preproccess(self, develop:bool=False):
+        """Plates preproccesing
+
+        Args:
+            develop (bool, optional): On off developer mode. Defaults to False.
+        """
 
         if develop:
             cv2.namedWindow('Parameters preproccessing')
@@ -92,31 +99,128 @@ class Plate:
         plt.imshow(cv2.cvtColor(dilate_img, cv2.COLOR_BGR2RGB))
         plt.show()
 
-        min_area = 12000
-        max_area = 22500
-        
-
-        contours, _ = cv2.findContours(dilate_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours = cv2.findContours(dilate_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours = imutils.grab_contours(contours)
-        contours = sorted(contours, key=cv2.contourArea, reverse=True)
-        # for cnt in contours:
-        #     area = cv2.contourArea(cnt)
-            
-        #     if area > min_area and area < max_area:
-        #         x,y,w,h = cv2.boundingRect(cnt)
-        #         cv2.rectangle(self.plate_raw,(x,y),(x+w,y+h),(0,255,0),2)
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)[:10]
 
-        # for cnt in contours:
-        #     approx = cv2.approxPolyDP(cnt, 0.02 * cv2.arcLength(cnt, True), True)
-        #     area = cv2.contourArea(cnt)
-        #     if len(approx) == 4:
-        #         x, y, w, h = cv2.boundingRect(approx)
-        #         aspect_ratio = w / float(h)
-        #         if 1 <= aspect_ratio <= 5 and area > min_area and area < max_area:
-        #             cv2.rectangle(self.plate_raw,(x,y),(x+w,y+h),(0,255,0),2)
-        
-        # filtered_contour = sorted(contours, key=cv2.contourArea, reverse=True)[1:9]
         cv2.drawContours(self.plate_raw, contours, -1, (0, 255, 0), 1)
 
         plt.imshow(cv2.cvtColor(self.plate_raw, cv2.COLOR_BGR2RGB))
         plt.show()
+
+
+    def chars_recognize(self, font_path, width:int, height:int, min_height:int, max_width:int):
+        plate = self.plate_raw
+        gray = cv2.cvtColor(plate, cv2.COLOR_BGR2GRAY)
+        gray = cv2.bilateralFilter(gray, 19, 150, 10)
+        thresholded = cv2.adaptiveThreshold(
+            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 19, 2
+        )
+        contours = cv2.findContours(thresholded, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours = imutils.grab_contours(contours)
+        self.contours = sorted(contours, key=cv2.contourArea, reverse=True)[:10]
+        
+        array = self.char_contours_get(gray, width, height, min_height, max_width)
+
+        font_chars, font_char_names = self.create_matching_template(font_path, width, height)
+
+        text = ""
+        for char in array:
+            probabilities = []
+            for font_char in font_chars:
+                res = cv2.matchTemplate(char, font_char, cv2.TM_CCOEFF_NORMED)
+                probabilities.append(np.max(res))
+            text += font_char_names[np.argmax(probabilities)]
+
+        text = self.check_string(text)
+        print(text)
+
+    
+    def char_contours_get(self, plate, width:int, height:int, min_height:int, max_width:int) -> np.ndarray:
+        bounds = []
+        contours = sorted(self.contours, key=lambda cnt: cv2.boundingRect(cnt)[0])
+        for cnt in contours:
+            x, y, w, h = cv2.boundingRect(cnt)
+            if w > max_width or h < min_height :
+                continue
+            char = plate[y : y + h, x : x + w]
+            char = cv2.resize(char, (width, height))
+            bounds.append(char)
+
+        return np.array(bounds)
+    
+
+    def create_matching_template(self, font_path, width:int, height:int) -> tuple[np.ndarray, list]:
+        chars_template = os.listdir(font_path)
+        chars = []
+        for char in chars_template:
+            char = cv2.imread(f"{font_path}/{char}", cv2.IMREAD_GRAYSCALE)
+            thresh_char = cv2.threshold(char, 128, 255, cv2.THRESH_BINARY_INV)[1]
+            contours, _ = cv2.findContours(thresh_char, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            x, y, w, h = cv2.boundingRect(contours[0])
+            char = char[y : y + h, x : x + w]
+            char = cv2.resize(char, (width, height))
+            chars.append(char)
+            chars_list = [os.path.splitext(char)[0] for char in chars_template]
+        return np.array(chars), chars_list
+    
+
+    def check_string(self, text):
+
+        text_len = len(text)
+        changes_first_part = {'0': 'O',
+                              '1': 'I',
+                              '2': 'Z',
+                              '4': 'A',
+                              '5': 'Z',
+                              '7': 'Z',
+                              '8': 'B'
+                              }
+        changes_second_part = {'B': '8', 
+                               'D': '0', 
+                               'I': '1',
+                               'O': '0', 
+                               'Z': '2',
+                               }
+
+        if text_len > 7:
+            text = self.remove_first_duplicate_or_trim(text)
+
+        if text_len <= 7:
+            missing_chars = 7 - text_len
+            for i in range(missing_chars):
+                num = random.randint(0, 9)
+                print(num)
+                text += str(num)
+
+        for i in range(text_len):                    
+                if i < 2 and text[i] in changes_first_part:
+                    text = self.replace_char_at_index(text, i, changes_first_part[text[i]])
+                elif i > 2 and text in changes_second_part:
+                    text = self.replace_char_at_index(text, i, changes_second_part[text[i]])
+        
+        return text
+    
+
+    def replace_char_at_index(self, s: str, index: int, new_char: str) -> str:
+        if index < 0 or index >= len(s):
+            raise ValueError("Index out of range.")
+        return s[:index] + new_char + s[index + 1:]
+    
+
+    def remove_first_duplicate_or_trim(s: str) -> str:
+        seen = set()
+        result = []
+        has_duplicates = False
+
+        for char in s:
+            if char in seen:
+                has_duplicates = True
+            else:
+                result.append(char)
+                seen.add(char)
+        
+        if has_duplicates:
+            return ''.join(result)
+        
+        return s[:7]

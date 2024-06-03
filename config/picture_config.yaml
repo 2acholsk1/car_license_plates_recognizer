@@ -6,8 +6,6 @@ PICTURE:
   area_max: 110000
   width_plate: 896
   height_plate: 256
-  
-
 
 
 # Minimal and Maximal hsv range for blue 
