@@ -1,8 +1,8 @@
 # Configuration file for plate sets
 
 CHAR:
-  width: 120
-  height: 120
+  width: 128
+  height: 128
   height_min: 200
   width_max: 150
   

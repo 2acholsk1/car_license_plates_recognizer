@@ -15,6 +15,7 @@
 The project involves developing a vision system for detecting and reading car license plates.
 
 **Assumptions:**
+- The license plates come from Poland
 - The boards in the photos will slant no more than ± 45 degrees from the horizontal position,
 - The longer edge of the plate occupies more than one-third of the width of the photo,
 - The angle between the optical axis of the camera and the plane of the plate not more than 45 degrees,
@@ -89,7 +90,71 @@ Example output of recognized text from license plates in `.json` file:
 
 ## Documentation
 
+### Description
 
+The project consists of two main classes Picture and Plate, which together are used to process images and recognize characters on license plates. The Picture class is responsible for pre-processing images and extracting license plates, while the Plate class handles character recognition on the extracted license plates.
+
+![Structure of code](data/classes_car-reco.drawio.png)
+
+### Code workflow
+
+**1. Initialization of object class Picture.**
+- Load image from given path
+- Scale the image to the specified width size_init while maintaining the aspect ratio.
+
+![Loaded image](data/photos/init_image.png)
+
+**2. Preprocessing of the image (preprocessing method in the Picture class, OPTIONAL).**
+- Optional launch of developer mode with sliders to adjust processing parameters.
+- Image filtering using various techniques (GaussianBlur, bilateralFilter).
+- Edge detection using the Canny algorithm.
+- Optional morphological operations (erosion, dilation, opening, closing).
+
+
+
+**3. Searching for a blue rectangle (blue_rectangle_finder method in the Picture class).**
+- Convert the image to HSV color space.
+- Creating a mask based on the blue color range.
+- Searching for contours and sorting them by area.
+- Returning the coordinates of the upper left corner of the largest blue rectangle.
+
+![Find blue](data/photos/find_blue.png)
+
+**4. Contouring the license plate (contouring_plate method in the Picture class).**
+- Searching for a blue rectangle.
+- Converting the image to HSV color space and creating a mask based on the white color range.
+- Searching and sorting contours by area.
+- Checking the solidity of contours and their shape (four-sidedness).
+
+![Find plate](data/photos/find_contour.png)
+
+- Perspective transformation of the license plate.
+
+![Plate](data/photos/plate.png)
+
+**5. Initialization of the Plate class object.**
+- Adding a white border around the plate image.
+- Verifying the correctness of the plate image.
+
+**6. Preprocessing of the license plate (preproccess method in the Plate class, OPTIONAL)**
+- Optional launch of developer mode with sliders to adjust processing parameters.
+- Image filtering using various techniques (GaussianBlur, bilateralFilter).
+- Edge detection using the Canny algorithm and morphological operations.
+- Drawing contours on the image.
+
+**7. Recognition of the characters on the license plate (chars_recognize method in the Plate class).**
+- Conversion of plate image to grayscale and bilateral filtering.
+- Adaptive thresholding and contour search.
+- Character contour extraction.
+- Comparing character outlines with character templates stored in a font folder.
+- Assembling recognized characters into text.
+
+![Char](data/photos/p.png)
+
+**8. Additional auxiliary operations (check_string, replace_char_at_index methods in the Plate class).**
+- Checking and correcting the recognized text on the plate.
+- Replacing some characters with more likely equivalents depending on their position in the text.
+- Generating random digits to fill in missing characters if the text length is less than 7 characters.
 
 ## Bugs & Feature Requests
 

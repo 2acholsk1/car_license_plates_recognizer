@@ -9,7 +9,7 @@ import imutils
 
 
 class Picture:
-    """Class for initial preproccess images and extract license plates
+    """Class for initial preprocess images and extract license plates
     """
     
 
@@ -23,31 +23,29 @@ class Picture:
         img_ratio = self.raw_img.shape[1]/self.raw_img.shape[0]
 
         self.resized_img = cv2.resize(self.raw_img, (size_init, int(size_init/img_ratio)), fx=0.0, fy=0.0, interpolation=cv2.INTER_LANCZOS4)
-        self.plate = None
-
-
+        self.plate = None     
 
 
     def empty_callback(*args):
         pass
 
-    def preproccessing(self, develop:bool=False) -> None:
-        """Images preproccesing
+    def preprocessing(self, develop:bool=False) -> None:
+        """Images preprocesing
 
         Args:
             develop (bool, optional): On off developer mode. Defaults to False.
         """
 
         if develop:
-            cv2.namedWindow('Parameters preproccessing')
-            cv2.createTrackbar('Filter', 'Parameters preproccessing', 0, 10, self.empty_callback)
-            cv2.createTrackbar('BIFilter', 'Parameters preproccessing', 0, 25, self.empty_callback)
-            cv2.createTrackbar('sigmaCol', 'Parameters preproccessing', 0, 25, self.empty_callback)
-            cv2.createTrackbar('sigmaSpac', 'Parameters preproccessing', 0, 25, self.empty_callback)
-            cv2.createTrackbar('Erosion', 'Parameters preproccessing', 0, 10, self.empty_callback)
-            cv2.createTrackbar('Dilation', 'Parameters preproccessing', 0, 10, self.empty_callback)
-            cv2.createTrackbar('Opening', 'Parameters preproccessing', 0, 10, self.empty_callback)
-            cv2.createTrackbar('Closing', 'Parameters preproccessing', 0, 10, self.empty_callback)
+            cv2.namedWindow('Parameters preprocessing')
+            cv2.createTrackbar('Filter', 'Parameters preprocessing', 0, 10, self.empty_callback)
+            cv2.createTrackbar('BIFilter', 'Parameters preprocessing', 0, 25, self.empty_callback)
+            cv2.createTrackbar('sigmaCol', 'Parameters preprocessing', 0, 25, self.empty_callback)
+            cv2.createTrackbar('sigmaSpac', 'Parameters preprocessing', 0, 25, self.empty_callback)
+            cv2.createTrackbar('Erosion', 'Parameters preprocessing', 0, 10, self.empty_callback)
+            cv2.createTrackbar('Dilation', 'Parameters preprocessing', 0, 10, self.empty_callback)
+            cv2.createTrackbar('Opening', 'Parameters preprocessing', 0, 10, self.empty_callback)
+            cv2.createTrackbar('Closing', 'Parameters preprocessing', 0, 10, self.empty_callback)
         
             while True: 
                 blurred_img = cv2.GaussianBlur(self.resized_img, (7, 7), 0)
@@ -55,14 +53,14 @@ class Picture:
                 key_code = cv2.waitKey(10)
                 if key_code == 27:
                     break
-                track_fil = cv2.getTrackbarPos('Filter', 'Parameters preproccessing')
-                track_bi = cv2.getTrackbarPos('BIFilter', 'Parameters preproccessing')
-                track_bicol = cv2.getTrackbarPos('sigmaCol', 'Parameters preproccessing')
-                track_bispa = cv2.getTrackbarPos('sigmaSpac', 'Parameters preproccessing')
-                track_ero = cv2.getTrackbarPos('Erosion', 'Parameters preproccessing')
-                track_dil = cv2.getTrackbarPos('Dilation', 'Parameters preproccessing')
-                track_ope = cv2.getTrackbarPos('Opening', 'Parameters preproccessing')
-                track_clo = cv2.getTrackbarPos('Closing', 'Parameters preproccessing')
+                track_fil = cv2.getTrackbarPos('Filter', 'Parameters preprocessing')
+                track_bi = cv2.getTrackbarPos('BIFilter', 'Parameters preprocessing')
+                track_bicol = cv2.getTrackbarPos('sigmaCol', 'Parameters preprocessing')
+                track_bispa = cv2.getTrackbarPos('sigmaSpac', 'Parameters preprocessing')
+                track_ero = cv2.getTrackbarPos('Erosion', 'Parameters preprocessing')
+                track_dil = cv2.getTrackbarPos('Dilation', 'Parameters preprocessing')
+                track_ope = cv2.getTrackbarPos('Opening', 'Parameters preprocessing')
+                track_clo = cv2.getTrackbarPos('Closing', 'Parameters preprocessing')
 
                 track_fil = int(2*track_fil-1)
                 track_ero = int(2*track_ero-1)
@@ -94,7 +92,7 @@ class Picture:
 
                 
 
-                cv2.imshow('Parameters preproccessing', image_work)
+                cv2.imshow('Parameters preprocessing', image_work)
 
         else:
             blurred_img = cv2.GaussianBlur(self.resized_img, (7, 7), 0)
@@ -173,6 +171,7 @@ class Picture:
             x, y, w, h = cv2.boundingRect(cnt)
             corners = cv2.approxPolyDP(cnt, 0.02 * cv2.arcLength(cnt, True), True)
             solidity = self.find_solidity(cnt)
+            
 
             if x > x_cor and min_area < area < max_area and len(corners) == 4 and 0.99 > solidity > 0.91:
                 array_float = np.array([corners[0][0], corners[1][0],
@@ -181,7 +180,6 @@ class Picture:
                 fit_img = np.float32([[0, 0], [width_plate, 0], [width_plate, height_plate], [0, height_plate]])
                 matrix = cv2.getPerspectiveTransform(points, fit_img)
                 self.plate = cv2.warpPerspective(self.resized_img.copy(), matrix, (width_plate, height_plate))
-
     def contouring_plate_mod2(self, blue_min, blue_max,
                               min_area:int, max_area:int,
                               width_plate:int, height_plate:int):
@@ -205,8 +203,8 @@ class Picture:
         _, threshold_img = cv2.threshold(canny_img, 100, 255, cv2.THRESH_BINARY)
         closed_img = cv2.morphologyEx(threshold_img, cv2.MORPH_CLOSE, (5,5))
         kernel_dil = np.ones((3, 3), np.uint8)
-        preproccessed_img = cv2.dilate(closed_img, kernel_dil, iterations=1)
-        contours = cv2.findContours(preproccessed_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        preprocessed_img = cv2.dilate(closed_img, kernel_dil, iterations=1)
+        contours = cv2.findContours(preprocessed_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours_grab = imutils.grab_contours(contours)
         contours_sort = sorted(contours_grab, key=cv2.contourArea, reverse=True)[:10]
 

@@ -15,7 +15,6 @@ import imutils
 import os
 import random
 
-
 class Plate:
 
     def __init__(self, plate:np.ndarray) -> None:
@@ -39,23 +38,23 @@ class Plate:
         """
         pass
 
-    def preproccess(self, develop:bool=False):
-        """Plates preproccesing
+    def preprocess(self, develop:bool=False):
+        """Plates preprocesing
 
         Args:
             develop (bool, optional): On off developer mode. Defaults to False.
         """
 
         if develop:
-            cv2.namedWindow('Parameters preproccessing')
-            cv2.createTrackbar('Filter', 'Parameters preproccessing', 0, 10, self.empty_callback)
-            cv2.createTrackbar('BIFilter', 'Parameters preproccessing', 0, 25, self.empty_callback)
-            cv2.createTrackbar('sigmaCol', 'Parameters preproccessing', 0, 25, self.empty_callback)
-            cv2.createTrackbar('sigmaSpac', 'Parameters preproccessing', 0, 25, self.empty_callback)
-            cv2.createTrackbar('Erosion', 'Parameters preproccessing', 0, 10, self.empty_callback)
-            cv2.createTrackbar('Dilation', 'Parameters preproccessing', 0, 10, self.empty_callback)
-            cv2.createTrackbar('Opening', 'Parameters preproccessing', 0, 10, self.empty_callback)
-            cv2.createTrackbar('Closing', 'Parameters preproccessing', 0, 10, self.empty_callback)
+            cv2.namedWindow('Parameters preprocessing')
+            cv2.createTrackbar('Filter', 'Parameters preprocessing', 0, 10, self.empty_callback)
+            cv2.createTrackbar('BIFilter', 'Parameters preprocessing', 0, 25, self.empty_callback)
+            cv2.createTrackbar('sigmaCol', 'Parameters preprocessing', 0, 25, self.empty_callback)
+            cv2.createTrackbar('sigmaSpac', 'Parameters preprocessing', 0, 25, self.empty_callback)
+            cv2.createTrackbar('Erosion', 'Parameters preprocessing', 0, 10, self.empty_callback)
+            cv2.createTrackbar('Dilation', 'Parameters preprocessing', 0, 10, self.empty_callback)
+            cv2.createTrackbar('Opening', 'Parameters preprocessing', 0, 10, self.empty_callback)
+            cv2.createTrackbar('Closing', 'Parameters preprocessing', 0, 10, self.empty_callback)
         
             while True: 
                 blurred_img = cv2.GaussianBlur(self.plate_raw, (5, 5), 0)
@@ -64,14 +63,14 @@ class Plate:
                 key_code = cv2.waitKey(10)
                 if key_code == 27:
                     break
-                track_fil = cv2.getTrackbarPos('Filter', 'Parameters preproccessing')
-                track_bi = cv2.getTrackbarPos('BIFilter', 'Parameters preproccessing')
-                track_bicol = cv2.getTrackbarPos('sigmaCol', 'Parameters preproccessing')
-                track_bispa = cv2.getTrackbarPos('sigmaSpac', 'Parameters preproccessing')
-                track_ero = cv2.getTrackbarPos('Erosion', 'Parameters preproccessing')
-                track_dil = cv2.getTrackbarPos('Dilation', 'Parameters preproccessing')
-                track_ope = cv2.getTrackbarPos('Opening', 'Parameters preproccessing')
-                track_clo = cv2.getTrackbarPos('Closing', 'Parameters preproccessing')
+                track_fil = cv2.getTrackbarPos('Filter', 'Parameters preprocessing')
+                track_bi = cv2.getTrackbarPos('BIFilter', 'Parameters preprocessing')
+                track_bicol = cv2.getTrackbarPos('sigmaCol', 'Parameters preprocessing')
+                track_bispa = cv2.getTrackbarPos('sigmaSpac', 'Parameters preprocessing')
+                track_ero = cv2.getTrackbarPos('Erosion', 'Parameters preprocessing')
+                track_dil = cv2.getTrackbarPos('Dilation', 'Parameters preprocessing')
+                track_ope = cv2.getTrackbarPos('Opening', 'Parameters preprocessing')
+                track_clo = cv2.getTrackbarPos('Closing', 'Parameters preprocessing')
 
                 track_fil = int(2*track_fil-1)
                 track_ero = int(2*track_ero-1)
@@ -104,7 +103,7 @@ class Plate:
 
                 
 
-                cv2.imshow('Parameters preproccessing', image_work)
+                cv2.imshow('Parameters preprocessing', image_work)
 
         blurred_img = cv2.GaussianBlur(self.plate_raw, (5,5), 0)
         gray_img = cv2.cvtColor(blurred_img, cv2.COLOR_BGR2GRAY)
