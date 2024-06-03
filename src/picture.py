@@ -25,10 +25,10 @@ class Picture:
             img_ratio = self.raw_img.shape[1]/self.raw_img.shape[0]
 
             self.resized_img = cv2.resize(self.raw_img, (size_init, int(size_init/img_ratio)), fx=0.0, fy=0.0, interpolation=cv2.INTER_LANCZOS4)
-            self.proper_perspective_img = None
+            self.plate = None
 
         except Exception as e:
-            print(f"An error occurred: {e}")
+            print(f"An error occurred: {e} uno")
 
 
 
@@ -105,36 +105,68 @@ class Picture:
 
 
     def blue_rectangle_finder(self, blue_min:np.ndarray, blue_max:np.ndarray):
+        """Function to find left upper corner of blue rectangle from license plate
 
-        bilateral = cv2.bilateralFilter(self.resized_img, 3, 75, 75)
+        Args:
+            blue_min (np.ndarray): Minimal values of blue color in HSV
+            blue_max (np.ndarray): Maximal values of blue color in HSV
+
+        Returns:
+            _type_: Coordinates x and y of blue rectangle corner
+        """
+
+        bilateral = cv2.bilateralFilter(self.resized_img.copy(), 3, 75, 75)
         hsv_img = cv2.cvtColor(bilateral, cv2.COLOR_BGR2HSV)
         mask_blue = cv2.inRange(hsv_img, blue_min, blue_max)
 
         contours = cv2.findContours(mask_blue, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours_grab = imutils.grab_contours(contours)
-        contours_sort = sorted(contours_grab, key=cv2.contourArea, reverse=True)[:1]
-        cv2.drawContours(self.resized_img, contours_sort, 0, 255, 5)
-        plt.imshow(cv2.cvtColor(self.resized_img, cv2.COLOR_BGR2RGB))
-        plt.show()
-        x, y, w, h = cv2.boundingRect(contours_sort[0])
-        if h > w:
-            return x
+        contours_sort = sorted(contours_grab, key=cv2.contourArea, reverse=True)[:10]
         
-        return None
+        for cnt in contours_sort:
+            x, y, w, h = cv2.boundingRect(cnt)
+            if h > w:
+                return x, y
+        
+        return 300, 400
 
-    
+    def find_solidity(self, count):
+        """Function to check solidity of contour
+
+        Args:
+            count (_type_): Contour to checj
+
+        Returns:
+            _type_: Value of solidity
+        """
+        contourArea = cv2.contourArea(count) 
+        convexHull = cv2.convexHull(count) 
+        contour_hull_area = cv2.contourArea(convexHull) 
+        solidity = float(contourArea)/contour_hull_area 
+        return solidity
     
     def contouring_plate(self, blue_min:np.ndarray, blue_max:np.ndarray, 
                          white_min:np.ndarray, white_max:np.ndarray,
-                         min_area, max_area, widthh, heightt ) -> None:
-        """Finding contours on preproccessed image
+                         min_area:int, max_area:int, width_plate:int, height_plate:int ) -> None:
+        """Function for finding white plate rectangle. Based on mask with color in hsv
+
+        Args:
+            blue_min (np.ndarray): Minimal values of blue color in HSV
+            blue_max (np.ndarray): Maximal values of blue color in HSV
+            white_min (np.ndarray): Minimal values of white color in HSV
+            white_max (np.ndarray): Maximal values of white color in HSV
+            min_area (int): Minimal area of license plate rectangle
+            max_area (int): Maximal area of license plate rectangle
+            width_plate (int): Width of plate
+            height_plate (int): Height of plate
         """
 
-        x_cor = self.blue_rectangle_finder(blue_min, blue_max)
+        x_cor, y_cor = self.blue_rectangle_finder(blue_min, blue_max)
 
-        bilateral = cv2.bilateralFilter(self.resized_img, 3, 75, 75)
+        bilateral = cv2.bilateralFilter(self.resized_img.copy(), 3, 75, 75)
         hsv_img = cv2.cvtColor(bilateral, cv2.COLOR_BGR2HSV)
         mask_white = cv2.inRange(hsv_img, white_min, white_max)
+        
 
         contours = cv2.findContours(mask_white, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours_grab = imutils.grab_contours(contours)
@@ -143,64 +175,79 @@ class Picture:
         for cnt in contours_sort:
             area = cv2.contourArea(cnt)
             x, y, w, h = cv2.boundingRect(cnt)
-            peri = cv2.arcLength(cnt, True)
-            corners = cv2.approxPolyDP(cnt, 0.02 * peri, True)
+            corners = cv2.approxPolyDP(cnt, 0.02 * cv2.arcLength(cnt, True), True)
+            solidity = self.find_solidity(cnt)
 
-            if min_area < area < max_area and x > x_cor and len(corners) == 4:
+            if x > x_cor and min_area < area < max_area and len(corners) == 4 and 0.99 > solidity > 0.91:
                 array_float = np.array([corners[0][0], corners[1][0],
                                         corners[2][0], corners[3][0]], dtype=np.float32)
-                pts1 = self.corners_matching(array_float)
-                pts2 = np.float32(
-                    [
-                        [0, 0], [widthh, 0], [widthh, heightt], [0, heightt],
-                    ]
-                )
-                matrix = cv2.getPerspectiveTransform(pts1, pts2)
-                image = cv2.warpPerspective(self.resized_img, matrix, (widthh, heightt))
-                plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+                points = self.corners_matching(array_float)
+                fit_img = np.float32([[0, 0], [width_plate, 0], [width_plate, height_plate], [0, height_plate]])
+                matrix = cv2.getPerspectiveTransform(points, fit_img)
+                self.plate = cv2.warpPerspective(self.resized_img.copy(), matrix, (width_plate, height_plate))
+                plt.imshow(cv2.cvtColor(self.plate, cv2.COLOR_BGR2RGB))
                 plt.show()
 
-                return image
-
-        return None
-
-        # contours, _ = cv2.findContours(self.preproccesed_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        # candidate_contours = []
-
-        # for cnt in contours:
-        #     approx = cv2.approxPolyDP(cnt, 0.02 * cv2.arcLength(cnt, True), True)
-        #     if len(approx) == 4:
-        #         x, y, w, h = cv2.boundingRect(approx)
-        #         aspect_ratio = w / float(h)
-        #         if 1.5 <= aspect_ratio <= 5:
-        #             candidate_contours.append(approx)
-        # self.filtered_contour = sorted(candidate_contours, key=cv2.contourArea, reverse=True)[:1]
+    def contouring_plate_mod2(self, blue_min, blue_max,
+                              min_area:int, max_area:int,
+                              width_plate:int, height_plate:int):
+        """Function for finding white plate rectangle. Based on thresholding image with canny transformation
 
 
-    def masking(self) -> None:
-        """Set mask on image and extract plate contour
+        Args:
+            blue_min (np.ndarray): Minimal values of blue color in HSV
+            blue_max (np.ndarray): Maximal values of blue color in HSV
+            min_area (int): Minimal area of license plate rectangle
+            max_area (int): Maximal area of license plate rectangle
+            width_plate (int): Width of plate
+            height_plate (int): Height of plate
         """
-        self.mask = np.zeros(self.gray_img.shape, np.uint8)
-        self.new_image = cv2.drawContours(self.mask, self.filtered_contour, 0, 255, -1)
-        self.new_image = cv2.bitwise_and(self.resized_img, self.resized_img, mask=self.mask)
+
+        x_cor, y_cor = self.blue_rectangle_finder(blue_min, blue_max)
+
+        blurred_img = cv2.GaussianBlur(self.resized_img.copy(), (7, 7), 0)
+        gray_img = cv2.cvtColor(blurred_img, cv2.COLOR_BGR2GRAY)
+        canny_img = cv2.Canny(gray_img, 50, 200)
+        _, threshold_img = cv2.threshold(canny_img, 100, 255, cv2.THRESH_BINARY)
+        closed_img = cv2.morphologyEx(threshold_img, cv2.MORPH_CLOSE, (5,5))
+        kernel_dil = np.ones((3, 3), np.uint8)
+        kernel_dil = np.ones((3, 3), np.uint8)
+        preproccessed_img = cv2.dilate(closed_img, kernel_dil, iterations=1)
+        contours = cv2.findContours(preproccessed_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours_grab = imutils.grab_contours(contours)
+        contours_sort = sorted(contours_grab, key=cv2.contourArea, reverse=True)[:10]
+
+        candidate_contours = []
+
+        for cnt in contours_sort:
+            area = cv2.contourArea(cnt)
+            x, y, w, h = cv2.boundingRect(cnt)
+            corners = cv2.approxPolyDP(cnt, 0.02 * cv2.arcLength(cnt, True), True)
+            solidity = self.find_solidity(cnt)
+            aspect_ratio = w / float(h)
+
+            if x > x_cor and 1.5 <= aspect_ratio <= 5 and len(corners) == 4 and min_area < area < max_area and 0.99 > solidity > 0.91:
+                candidate_contours.append(corners)
+                
+        filtered_contour = candidate_contours[:1]
+
+        mask = np.zeros(gray_img.shape, np.uint8)
+        new_image = cv2.drawContours(mask, filtered_contour, 0, 255, -1)
+        new_image = cv2.bitwise_and(self.resized_img, self.resized_img, mask=mask)
         
-    def croping_plate(self) -> None:
-        """Croping license plates from mask image
-        """
         try:
-            width = 400
-            height = 100
-            array_float = np.array([self.filtered_contour[0][0][0], self.filtered_contour[0][1][0],
-                                    self.filtered_contour[0][2][0], self.filtered_contour[0][3][0]], dtype=np.float32)
+            array_float = np.array([filtered_contour[0][0][0], filtered_contour[0][1][0],
+                                    filtered_contour[0][2][0], filtered_contour[0][3][0]], dtype=np.float32)
             
             array_float = self.corners_matching(array_float.copy())
-            fit_img = np.float32([[0, 0], [width, 0], [width, height], [0, height]])
+            fit_img = np.float32([[0, 0], [width_plate, 0], [width_plate, height_plate], [0, height_plate]])
             matrix = cv2.getPerspectiveTransform(array_float, fit_img)
 
-            self.proper_perspective_img = cv2.warpPerspective(self.new_image, matrix, (width, height))
+            self.plate = cv2.warpPerspective(new_image, matrix, (width_plate, height_plate))
+            plt.imshow(cv2.cvtColor(self.plate, cv2.COLOR_BGR2RGB))
+            plt.show()
         except Exception as e:
             print(f"An error occurred: {e}")
-        
 
     def corners_matching(self, array:np.array) -> None:
         """Function for correcting rotation of recognized license plate
@@ -229,4 +276,4 @@ class Picture:
         Returns:
             _type_: Image of license plate 
         """
-        return self.proper_perspective_img
+        return self.plate
