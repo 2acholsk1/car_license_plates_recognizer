@@ -94,3 +94,4 @@ Example output of recognized text from license plates in `.json` file:
 ## Bugs & Feature Requests
 
 Please report bugs and request features using the [Issue Tracker](https://github.com/2acholsk1/car_license_plates_recognizer/issues).
+
