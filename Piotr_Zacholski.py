@@ -48,7 +48,7 @@ def main():
 
         results[image_name] = plate.text_get()
     
-    with open(saving_path+'.json', 'w', encoding='utf-8') as f:
+    with open(saving_path, 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2)
 
 
