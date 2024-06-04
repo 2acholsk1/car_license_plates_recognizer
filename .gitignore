@@ -8,3 +8,4 @@
 /share
 pyvenv.cfg
 share/man/man1
+**/__pycache__

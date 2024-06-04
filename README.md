@@ -159,4 +159,3 @@ The project consists of two main classes Picture and Plate, which together are u
 ## Bugs & Feature Requests
 
 Please report bugs and request features using the [Issue Tracker](https://github.com/2acholsk1/car_license_plates_recognizer/issues).
-
